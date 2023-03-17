@@ -1,4 +1,6 @@
 #pragma once
+#include <__algorithm/ranges_all_of.h>
+#include <__algorithm/ranges_lower_bound.h>
 #include <__concepts/constructible.h>
 #include <__concepts/convertible_to.h>
 #include <__ranges/counted.h>
@@ -10,7 +12,9 @@
 #include <iterator>
 #include <ranges>
 #include <random>
-
+#include <stdexcept>
+#include <string>
+#include <unordered_set>
 
 enum class line_t : std::int8_t {
       vertical =   0 // false bit
@@ -21,12 +25,22 @@ inline line_t& operator++(line_t& l){
     return l;
 };
 
+template<template<typename...> typename Container, typename T, typename ... Ts>
+inline bool insert_sorted(Container<T, Ts...>& v, T n){
+    auto insert_itr = std::lower_bound(std::begin(v), std::end(v), n);
+    if(insert_itr == std::end(v) || *insert_itr != n){
+        v.insert(insert_itr, n);
+        return true;
+    }
+    return false;
+}
+
 using wall_t =    bool;
-static inline constexpr bool wall = true ;
 using walls_container = std::vector<bool>;
 
 struct line : private walls_container{
 
+    using walls_container::value_type;
     template<std::convertible_to<wall_t>...Args>
     explicit line(line_t type, Args... walls_init_list)
     : walls_container{static_cast<wall_t>(type), static_cast<wall_t>(walls_init_list)...} {
@@ -35,15 +49,17 @@ struct line : private walls_container{
         (*this)[0] = static_cast<wall_t>(type );  
     }
     explicit line(): walls_container{static_cast<wall_t>(line_t::vertical)}{}
-    explicit line(walls_container container, line_t type): walls_container() {
+    explicit line(walls_container&& container, line_t type): walls_container() {
         walls_container::reserve(container.size() + 1);
-        (*this)[0] = static_cast<wall_t>(type);
-        walls_container::insert(std::next(walls_container::begin()), 
-                    container.begin(), container.end()); 
+        walls_container::push_back(static_cast<wall_t>(type));
+        walls_container::insert(begin(), 
+                    std::begin(container), std::end(container)); 
     }
-    [[nodiscard]] size_t length() {return walls_container::size();}
-    [[nodiscard]] walls_container::iterator begin() noexcept { return std::next(walls_container::begin()); }
-    [[nodiscard]] walls_container::iterator end  () noexcept { return walls_container::end();}
+    [[nodiscard]] size_t size() {return walls_container::size() - 1 ; }
+    [[nodiscard]] walls_container::iterator begin() noexcept { return std::next(walls_container::begin()) ; }
+    [[nodiscard]] walls_container::iterator end  () noexcept { return walls_container::end() ;}
+    [[nodiscard]] walls_container::const_iterator cbegin() const noexcept { return std::next(walls_container::cbegin()) ; }
+    [[nodiscard]] walls_container::const_iterator cend  () const noexcept { return walls_container::cend() ;}
     [[nodiscard]] line_t type() { bool first = *walls_container::begin(); return static_cast<line_t>( first ); }
 };
 
@@ -102,88 +118,118 @@ public:
 };
 
 
-using cell_i = std::uint32_t;
-using set_i = std::int32_t;
-static constexpr set_i invalid_set = -1;
-static auto random_bool = std::bind(std::uniform_int_distribution<>(0,1),std::default_random_engine());
+static inline auto random_bool = std::bind(std::uniform_int_distribution<>(0,1),std::default_random_engine());
+static inline constexpr wall_t wall     = static_cast<wall_t>(true) ;
+static inline constexpr wall_t not_wall = static_cast<wall_t>(false) ;
+using cell_i = std::int32_t; 
+constexpr cell_i invalid_cell = -1;
 
-inline walls_container v_line(cell_i width, std::vector<set_i> sets){
-    auto result = walls_container(width, false);
-    for(cell_i cell : std::ranges::iota_view(cell_i(0), width)){
-        set_i set = sets[cell];
-        set_i next_set = sets[cell+1];
-        if(set != invalid_set && next_set != invalid_set){
-            bool need_wall = random_bool();
-			if(set== next_set || need_wall){
-                result[cell] = true;
-				continue;
-			}
-			else{
-                sets[cell+1] = set;
-			}
+class maze{
+    
+    using set_i =  std::int32_t;
+    static constexpr set_i invalid_set = -1;
+    cell_i width_;
+    std::ranges::iota_view<cell_i, cell_i>
+    enumerate_cells = std::ranges::iota_view(cell_i{0}, width_);
+    std::vector<set_i> cells_and_its_set;
+    std::vector<std::vector<cell_i>> sets; 
+public:
+    maze(cell_i width) : width_(width)
+    , cells_and_its_set(width)
+    , sets(width) {
+        if(! (width > 0)) throw std::runtime_error("The width of maze must be greater then 0");
+         // assign an original set to the each cell
+        for(auto cell : enumerate_cells) {
+            sets[cell].reserve(static_cast<size_t>(width/2));
+            push_cell_to_set(cell, cell); // 1 cell -> 1 set, 2 cell -> 2 set
         }
+     }
+    walls_container gen_v_line(){
+        auto result = walls_container(width_, not_wall);
+        for(cell_i cell{0}; cell < width_-1; cell++){
+            set_i  set =      cells_and_its_set[cell];
+            set_i& next_set = cells_and_its_set[cell+1];
+            //if(set != invalid_set && next_set != invalid_set){
+                if(set == next_set || random_bool() /* build wall or not*/){
+                    result[cell] = wall;
+                }
+                else{
+                    pop_cell_from_its_set(cell+1);
+                    push_cell_to_set(set, cell+1);
+                }
+            //}
+        }
+        return result;
     }
-    return result;
-}
 
-inline walls_container h_line(cell_i width, std::vector<set_i> sets_indexes){   
-    using cell_set_t = std::vector<cell_i>;
-    auto cells = std::ranges::iota_view(cell_i{0}, width);
-    constexpr int invalid_cell = -1;
-
-    auto result = walls_container(width, false);
-
-    std::vector<cell_set_t> sets;
-    for(cell_i cell : cells ){
-        auto set = sets_indexes[cell];
-        // warning if sets is empty
-        if(set != invalid_set) sets[set].push_back(cell);
-    }
-    for(auto set : sets)
-    {
-        bool bIsBuildWay{true};
-		bool bStopBuildWay{false};
-        static constexpr set_i marked = -2;  
-        if(set.size() <= 1) continue; // guaranteed way
-        for(auto cell : set)
-        {
-            if(cell == *std::prev(set.end())) if(!bStopBuildWay) continue;
+    walls_container gen_h_line(){   
         
-            if(random_bool()){
-                sets_indexes[cell] = marked;
-                if(!bIsBuildWay) bStopBuildWay = true;
-                result[cell] = true;
-                continue;
-            }
-            else bIsBuildWay = false;
-        }
+        auto result = walls_container(width_, not_wall);
 
-        for(cell_i cell : cells | std::ranges::views::filter([&sets_indexes](cell_i c){ 
-                                    return sets_indexes[c] == marked;}))
+        for(auto set : sets)
         {
-            for(cell_i j : cells ){
-                if(sets_indexes[j] == invalid_set)  sets_indexes[cell] = j;
+            bool bIsBuildWay{true};
+            bool bStopBuildWay{false};
+            if(set.size() <= 1) continue; // guaranteed way
+            for(size_t i{0}; i < set.size(); i++)
+            {
+                auto cell = set[i];
+                if((cell == invalid_cell) 
+                || ( (i == set.size() - 1) && !bStopBuildWay ) ) continue;
+            
+                if(random_bool() /* build a wall or not */){
+                    pop_cell_from_its_set(cell);
+                    if(!bIsBuildWay) bStopBuildWay = true;
+                    result[cell] = wall;
+                    continue;
+                }
+                else bIsBuildWay = false;
             }
-        }
-	}		
-}
+
+            for(cell_i cell : enumerate_cells | std::ranges::views::filter([this](cell_i c){ 
+                                        return has_no_set(c);}))
+            {
+                auto empty_set = std::ranges::find_if(enumerate_cells, [this](cell_i set){
+                    return std::ranges::all_of(cells_and_its_set, [set](set_i s){
+                        return s != set;
+                    });
+                });
+                push_cell_to_set(*empty_set, cell);
+            }
+        }		
+        return result;
+    }
+    void pop_cell_from_its_set(cell_i cell){
+        auto& set = cells_and_its_set[cell];
+        *std::ranges::find(sets[set], cell) = invalid_cell;
+        set = invalid_set;
+    }
+    void push_cell_to_set(set_i set, cell_i cell) {
+        sets[set].push_back(cell);
+        cells_and_its_set[cell] = set;
+    }
+    bool has_no_set(cell_i cell){
+        return cells_and_its_set[cell] == invalid_set;
+    }
+    };
 
 inline line_generator ellersmaze(cell_i width) noexcept{
     line_t l = line_t::vertical;
-    auto sets = std::vector<int>(width) ;
-    while (true){
+    auto maze_ = maze(width);
+    while ( true ){
         walls_container  res;
         switch (l) {
         case line_t::vertical: {
-            res = v_line(width, sets);
+            res = maze_.gen_v_line();
             break;
         }
         case line_t::horizontal: {
-            res = h_line(width, sets);
+            res = maze_.gen_h_line();
              break;
         }             
         }
-        co_yield line{res, l};
+        line out = line{std::move(res), l};
+        co_yield out;
         ++l;
     }
     
