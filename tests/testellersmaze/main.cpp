@@ -1,6 +1,7 @@
 #include <__ranges/join_view.h>
 #include <iostream>
 #include <iterator>
+#include <vector>
 #include "ellers-maze.h"
 #include "unistd.h"
 #include "ranges"
@@ -18,12 +19,13 @@ void test_line_type_switching(){
 
 void test_print_lines()
 {
-    auto gen = ellersmaze(50);
+    int width = 50;
+    auto gen = ellersmaze(width);
     while(true) {
        line l =  gen();
        line l2 = gen();
     
-        for(size_t i{0}; i < 50; i++)
+        for(size_t i{0}; i < l.size(); i++)
         {
             auto ch = l[i];
             auto ch2 = l2[i];
@@ -56,13 +58,14 @@ void test_line_container()
 }
 void test_maze()
 {
-    auto maze_= maze(50);
+    int width = 50;
+    auto maze_= maze(width );
 
     while( true ) {
         auto res1 = maze_.gen_v_line();
         auto res2 = maze_.gen_h_line();
 
-        for (size_t i = 0; i < 50; i++)
+        for (size_t i = 0; i < width ; i++)
         {
             auto c1 = res1[i];
             auto c2 = res2[i];
@@ -73,9 +76,51 @@ void test_maze()
         sleep(1);
     }
 }
+
+free_list<int> make_free_list()
+{
+    free_list<int> lst;
+    lst.reserve(10);
+    for (size_t i = 0; i < 10; i++){
+        lst.insert(i);
+    }
+    return lst;
+}
+void test_erase()
+{
+    auto lst = make_free_list();
+    lst.erase(lst.begin());
+    lst.erase(lst.begin());
+    lst.erase(lst.begin() + 5);
+    lst.erase(lst.begin() + 2);
+    auto it = std::ranges::find(lst, 5);
+    lst.erase(it);
+}
+void test_free_list_iterator()
+{
+    auto lst = make_free_list();
+    
+
+    
+    //std::cout <<  *(++lst.begin());
+    //std::cout << *(lst.begin() +1);
+    
+    for(auto i : lst)
+    {
+        //std::cout << i ;
+    }
+    std::vector<int> v{1,2,3,4,6,5,6,6};
+    //std::cout << v[5] ;
+    
+    //v.erase(v.begin()+4);
+    //auto ptr = &(*v.begin());
+
+    //std::cout << *ptr;
+}
+
 int main()
 {
     test_print_lines();
-
+    //test_free_list_iterator();
     return 0;
 }
