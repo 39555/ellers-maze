@@ -14,6 +14,7 @@
 #include <random>
 #include <stdexcept>
 #include <string>
+#include <type_traits>
 #include <unordered_set>
 
 enum class line_t : std::int8_t {
@@ -37,15 +38,19 @@ inline bool insert_sorted(Container<T, Ts...>& v, T n){
 
 using wall_t =    bool;
 using walls_container = std::vector<bool>;
+static inline constexpr wall_t wall     = static_cast<wall_t>(true) ;
+static inline constexpr wall_t not_wall = static_cast<wall_t>(false) ;
 
 struct line : private walls_container{
-
+    static_assert(std::is_same_v<walls_container::value_type , wall_t>, "the type of wall's container must be the same as the wall_t type");
     using walls_container::value_type;
+    using walls_container::reference;
+    
     template<std::convertible_to<wall_t>...Args>
     explicit line(line_t type, Args... walls_init_list)
     : walls_container{static_cast<wall_t>(type), static_cast<wall_t>(walls_init_list)...} {
     }
-    explicit line(size_t width, line_t type): walls_container(width+1, false) {
+    explicit line(size_t width, line_t type): walls_container(width+1, not_wall) {
         (*this)[0] = static_cast<wall_t>(type );  
     }
     explicit line(): walls_container{static_cast<wall_t>(line_t::vertical)}{}
@@ -55,12 +60,15 @@ struct line : private walls_container{
         walls_container::insert(begin(), 
                     std::begin(container), std::end(container)); 
     }
+    [[nodiscard]] reference operator[](size_t n){
+        return walls_container::operator[](n+1);
+    }
     [[nodiscard]] size_t size() {return walls_container::size() - 1 ; }
     [[nodiscard]] walls_container::iterator begin() noexcept { return std::next(walls_container::begin()) ; }
     [[nodiscard]] walls_container::iterator end  () noexcept { return walls_container::end() ;}
     [[nodiscard]] walls_container::const_iterator cbegin() const noexcept { return std::next(walls_container::cbegin()) ; }
     [[nodiscard]] walls_container::const_iterator cend  () const noexcept { return walls_container::cend() ;}
-    [[nodiscard]] line_t type() { bool first = *walls_container::begin(); return static_cast<line_t>( first ); }
+    [[nodiscard]] line_t type() { wall_t first = *walls_container::begin(); return static_cast<line_t>( first ); }
 };
 
 struct line_generator{
@@ -88,10 +96,10 @@ public:
     line_generator(std::coroutine_handle<promise_type> h) : h_(h) {}
     ~line_generator() { h_.destroy(); };
 
-    explicit operator bool(){
-        fill();       
-        return !h_.done();
-    }
+   // explicit operator bool(){
+   //     fill();       
+  //      return !h_.done();
+   // }
 
     line operator()(){
         fill();
@@ -119,8 +127,7 @@ public:
 
 
 static inline auto random_bool = std::bind(std::uniform_int_distribution<>(0,1),std::default_random_engine());
-static inline constexpr wall_t wall     = static_cast<wall_t>(true) ;
-static inline constexpr wall_t not_wall = static_cast<wall_t>(false) ;
+
 using cell_i = std::int32_t; 
 constexpr cell_i invalid_cell = -1;
 
@@ -217,6 +224,7 @@ inline line_generator ellersmaze(cell_i width) noexcept{
     line_t l = line_t::vertical;
     auto maze_ = maze(width);
     while ( true ){
+        
         walls_container  res;
         switch (l) {
         case line_t::vertical: {
@@ -228,8 +236,7 @@ inline line_generator ellersmaze(cell_i width) noexcept{
              break;
         }             
         }
-        line out = line{std::move(res), l};
-        co_yield out;
+        co_yield line{std::move(res), l};
         ++l;
     }
     

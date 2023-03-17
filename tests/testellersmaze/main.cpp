@@ -9,7 +9,7 @@ void test_line_type_switching(){
 
     auto gen = ellersmaze(10);
 
-    while( gen ) {
+    while( true) {
        line l =  gen();
         std::cout << ( static_cast<int>(l.type()) == 1 ? "  horizontal  " : "  vertical "  ) << std::endl;
         sleep(1) ;
@@ -18,17 +18,17 @@ void test_line_type_switching(){
 
 void test_print_lines()
 {
-    auto gen = ellersmaze(10);
-    while( gen ) {
+    auto gen = ellersmaze(50);
+    while(true) {
        line l =  gen();
        line l2 = gen();
     
-        for(size_t i{0}; i < 10; i++)
+        for(size_t i{0}; i < 50; i++)
         {
-            auto ch = *(l.begin() + i);
-            auto ch2 = *(l2.begin() + i);
+            auto ch = l[i];
+            auto ch2 = l2[i];
 
-            std::cout << (ch == 1 ? '|' : ' ' )<< (ch == 1 ? '_' : ' ' );
+            std::cout << (ch == 1 ? '|' : ' ' )<< (ch2 == 1 ? '_' : ' ' );
         }
          std::cout << std::endl;
         sleep(1) ;
@@ -69,29 +69,13 @@ void test_maze()
             std::cout << (c1 == 1 ? '|' : ' ' ) << (c2 == 1 ? '_' : ' ' );
         }
          std::cout << std::endl;
-        //print_container(std::cout, res1, " ");
-        //print_container(std::cout, res2, " ");
-        /*
-        auto del = "#";
-        for(auto& c : {res1, res2})
-        {
-            for(size_t i{0}; i < 10; i++)
-            {
-                auto ch =  c[i];
-                std::cout << (ch == 1 ? del : " " ) << " ";
-            }
-            std::cout << std::endl;
-            //del = "#";
-        }
-        
-        */
         
         sleep(1);
     }
 }
 int main()
 {
-    test_maze();
+    test_print_lines();
 
     return 0;
 }
