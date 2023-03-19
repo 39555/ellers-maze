@@ -28,15 +28,6 @@ inline line_t& operator++(line_t& l){
     return l;
 };
 
-template<template<typename...> typename Container, typename T, typename ... Ts>
-inline bool insert_sorted(Container<T, Ts...>& v, T n){
-    auto insert_itr = std::lower_bound(std::begin(v), std::end(v), n);
-    if(insert_itr == std::end(v) || *insert_itr != n){
-        v.insert(insert_itr, n);
-        return true;
-    }
-    return false;
-}
 
 using wall_t =    bool;
 using walls_container = std::vector<bool>;
@@ -65,13 +56,14 @@ struct line : private walls_container{
     [[nodiscard]] reference operator[](size_t n){
         return walls_container::operator[](n+1);
     }
-    [[nodiscard]] size_t size() {return walls_container::size() - 1 ; }
+    [[nodiscard]] size_t size() const {return walls_container::size() - 1 ; }
     [[nodiscard]] walls_container::iterator begin() noexcept { return std::next(walls_container::begin()) ; }
     [[nodiscard]] walls_container::iterator end  () noexcept { return walls_container::end() ;}
     [[nodiscard]] walls_container::const_iterator cbegin() const noexcept { return std::next(walls_container::cbegin()) ; }
     [[nodiscard]] walls_container::const_iterator cend  () const noexcept { return walls_container::cend() ;}
     [[nodiscard]] line_t type() { wall_t first = *walls_container::begin(); return static_cast<line_t>( first ); }
 };
+
 
 struct line_generator{
     struct promise_type;
@@ -127,150 +119,9 @@ public:
     }
 };
 
-struct free_list_sentinel{
-};
-
-using index_t = std::int32_t ;
-enum class next_free_i: index_t { end_of_list = -1};
-
-
-
-template<typename T>
-struct free_list_iterator {
-    template <typename> friend class free_list;
-public:
-    using iterator_category = std::bidirectional_iterator_tag;
-    using difference_type   = std::ptrdiff_t;
-    using value_type        = T;
-    using pointer           = value_type*;
-    using reference         = value_type&;  
-
-    using free_list_value_type = std::variant<T, next_free_i>;
-    using free_list_pointer = free_list_value_type*;
-    free_list_iterator() = default;
-    free_list_iterator(free_list_pointer ptr) : ptr_(ptr) {
-        //ptr_ = 
-        satisfy<forward>(ptr_);
-    }
-private:
-    enum direction {forward = 1, backward = -1};
-    free_list_pointer ptr_ = nullptr;
-public:
-    reference operator*() const { return std::get<T>(*ptr_);   }
-    pointer operator-> ()       { return &std::get<T>(*ptr_);  }
-
-    free_list_iterator& operator++() {
-         ptr_++; 
-         //ptr_ = 
-         satisfy<forward>(ptr_);
-         return *this; }  
-
-    free_list_iterator& operator--() {
-         ptr_--; 
-         ptr_ = satisfy<backward>(ptr_);
-         return *this; } 
-    free_list_iterator& operator--(int) {
-        free_list_iterator tmp = *this;
-          --(*this); 
-          return tmp; }
-
-    free_list_iterator operator++(int) {
-         free_list_iterator tmp = *this;
-          ++(*this); 
-          return tmp; }
-
-     bool operator== (const free_list_sentinel ) const { return ptr_ == nullptr; };
-     bool operator== (free_list_iterator const & other) const { return ptr_ == other.ptr_; };
-     bool operator!=( free_list_iterator const & other ) const{   
-        return !(*this == other);
-    } 
-    free_list_iterator& operator+=(difference_type n){
-        free_list_pointer cur_ptr = ptr_;
-        while(ptr_ - cur_ptr < n){
-            ++(*this);
-        }
-        return *this;
-    }
-    free_list_iterator operator+(difference_type n){
-        free_list_iterator new_{*this} ; new_+=n; return new_;
-    }
-    difference_type operator-(const free_list_iterator& right) { 
-        free_list_pointer temp = std::max(ptr_, right.ptr_);
-        free_list_pointer dest = std::min(ptr_, right.ptr_);
-        difference_type i = 0;
-        while(temp > dest){
-            --temp;
-            satisfy<backward>(temp);
-            ++i;
-        }
-        return i;
-        }
-    free_list_iterator operator-(difference_type n){
-        return *this + (-n);
-    }
-    free_list_iterator operator-=(difference_type n)
-    {*this += -n; return *this;}
-
-private:
-    template<direction Direction>
-    void satisfy(free_list_pointer& ptr) {
-        while(ptr && ptr->index() == 1){ // skip free index
-            if constexpr (Direction == direction::forward) ++ptr;
-            else                                           --ptr;
-         }
-    }
-    
-};
-
-
-template <typename T>
-class free_list : private std::vector<std::variant<T
-                                                 , next_free_i>>
-{
-        using underlying_type = std::variant<T,   next_free_i>;
-public:
-        using iter_type = free_list_iterator<T>;
-        //using sentinel_type = free_list_sentinel;
-private:
-    using super         = std::vector<underlying_type>;  // or boost::small_vector
-    using iterator = typename super::iterator;
-    next_free_i first_free_ = next_free_i::end_of_list;
-public:
-    using super::reserve;
-    using difference_type = typename super::difference_type;
-    index_t insert(T elt){
-        if (first_free_ != next_free_i::end_of_list){
-            const index_t ind = static_cast<index_t>(first_free_);
-            first_free_ = std::get<next_free_i>(super::operator[](static_cast<index_t>(first_free_)));
-            super::operator[](ind) = elt;
-            return ind;
-        }
-        else{
-            super::push_back(std::variant<T, next_free_i>{elt});
-            return static_cast<index_t>(super::size() - 1);
-        }
-    }
-    void erase(iter_type where){
-        *where.ptr_     = first_free_;
-        first_free_ = static_cast<next_free_i>( super::size() - (&super::operator[](super::size()) - where.ptr_ ) );
-    }
-    
-    void clear(){
-        super::clear();
-        first_free_ = next_free_i::end_of_list;
-    }
-public:
-    size_t size() {
-        return end() - begin();
-    }
-    iter_type begin(){ return  iter_type( super::data());}
-    iter_type end()  { return  iter_type{super::data() + super::size()};}//{return sentinel_type{};}
-};
-
 static inline auto random_bool = std::bind(std::uniform_int_distribution<>(0,1),std::default_random_engine());
 
 using cell_i = std::int32_t; 
-constexpr cell_i invalid_cell = -1;
 
 class maze{
     
@@ -279,17 +130,17 @@ class maze{
     cell_i width_;
     std::ranges::iota_view<cell_i, cell_i>
     enumerate_cells = std::ranges::iota_view(cell_i{0}, width_);
-
-    enum class next_cell_without_set : size_t {};
+public:
+    enum class next_cell_without_set : cell_i { end_of_list =-1 };
     std::vector< std::variant<set_i
                             , next_cell_without_set>>   // the index of next cell without set
                               cells_and_its_set;
 
-    using set_type = free_list< cell_i >;
+    using set_type = std::vector< cell_i >;
     std::vector<set_type> sets; 
 
     set_i& get_cell_set(cell_i cell){ return std::get<set_i>(cells_and_its_set[cell]);}
-public:
+
     maze(cell_i width) : width_(width)
     , cells_and_its_set(width)
     , sets(width) {
@@ -303,14 +154,15 @@ public:
     walls_container gen_v_line(){
         auto result = walls_container(width_, not_wall);
         for(cell_i cell{0}; cell < width_-1; cell++){
+            cell_i next_cell = cell + 1;
+
             set_i  set =      get_cell_set(cell);
-            set_i& next_set = get_cell_set(cell+1);
+            set_i next_set = get_cell_set(next_cell);
             if(set == next_set || random_bool() /* build wall or not*/){
                 result[cell] = wall;
             }
             else{
-                pop_cell_from_its_set(cell+1);
-                push_cell_to_set(set, cell+1);
+                merge_sets(set, next_set);
             }
         }
         return result;
@@ -320,54 +172,56 @@ public:
         
         auto result = walls_container(width_, not_wall);
 
-        next_cell_without_set invalid_next = static_cast<next_cell_without_set>(invalid_cell);
-        next_cell_without_set next = invalid_next ;
+        // using for finding changed cells
+        next_cell_without_set next = next_cell_without_set::end_of_list;
+
         for(auto set : sets)
         {
-            bool bIsBuildWay{true};
-            bool bStopBuildWay{false};
-            if(set.size() <= 1) continue; // guaranteed way
+            bool need_build_way       {true };
+            bool way_is_already_built {false};
+
+            for(auto it = set.begin(); it != set.end(); ++it)
+            for(auto cell : set){
+                if(( (cell ==  *std::prev(set.end())) && ! way_is_already_built ) ) continue; // keep guaranteed way
             
-            for(size_t i{0}; auto cell : set)
-            {
-                if((cell == invalid_cell) 
-                || ( (i == set.size() - 1) && !bStopBuildWay ) ) continue;
-            
-                if(random_bool() /* build a wall or not */){
-                    pop_cell_from_its_set(cell);
+                if(! need_build_way  || random_bool() /* build a wall or not */){
+                    
+                     // pop cell from it`s set
+                    *it= std::move(set.back());   // unordered erace 
+                    set.pop_back();
+
                     cells_and_its_set[cell] = next;
                     next = static_cast<next_cell_without_set>(cell);
-                    if(!bIsBuildWay) bStopBuildWay = true;
+
+                    if(!need_build_way) way_is_already_built = true;
+
                     result[cell] = wall;
-                    continue;
                 }
-                else bIsBuildWay = false;
-                ++i;
+                else need_build_way = false; // way exists now
             }
         }
         // push cells without sets to unique set
-        while(next != invalid_next ){
+        while(next != next_cell_without_set::end_of_list){
             cell_i cell = static_cast<cell_i>(next);
             auto empty_set = std::ranges::find_if(sets, [cell, this](auto& set){
-                    // ! max O(n2) 
                     return set.size() == 0;
                     });
-            auto dist = std::distance(sets.begin(), empty_set );
             next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
-            push_cell_to_set(dist, cell);
+            push_cell_to_set(std::distance(sets.begin(), empty_set ), cell);
         }
-
         return result;
     }
-private:
-    void pop_cell_from_its_set(cell_i cell){
-        auto& set = get_cell_set(cell);
-        free_list_iterator<cell_i> finded = std::ranges::find(sets[set], cell);
-        sets[set].erase(finded);
-        set = invalid_set;
+    void merge_sets(set_i a, set_i to_a) {
+        for(cell_i cell : sets[to_a]){
+            cells_and_its_set[cell] = a;
+        }
+        sets[a].insert(sets[a].end(), sets[to_a].begin(), sets[to_a].end());
+        sets[to_a].clear();
+
     }
+private:
     void push_cell_to_set(set_i set, cell_i cell) {
-        sets[set].insert(cell);
+        sets[set].push_back(cell);
         cells_and_its_set[cell] = set;
     }
     };
@@ -381,10 +235,12 @@ inline line_generator ellersmaze(cell_i width) noexcept{
         switch (l) {
         case line_t::vertical: {
             res = maze_.gen_v_line();
+            //maze_.debug_print_sets_numbers();
             break;
         }
         case line_t::horizontal: {
             res = maze_.gen_h_line();
+            //maze_.debug_print_sets_numbers();
              break;
         }             
         }
