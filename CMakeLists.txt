@@ -5,16 +5,14 @@ PROJECT(ellers-maze)
 set(CMAKE_CXX_STANDARD          20)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-
 add_subdirectory(include)
 add_library(${PROJECT_NAME} INTERFACE)
 
 target_include_directories(${PROJECT_NAME} INTERFACE ${INC_DIRS})
 target_compile_options(${PROJECT_NAME} INTERFACE -fcoroutines-ts)
 
-add_executable(testellersmaze ${CMAKE_CURRENT_SOURCE_DIR}/tests/testellersmaze/main.cpp)
+add_executable(testellersmaze ${CMAKE_CURRENT_SOURCE_DIR}/example/main.cpp)
 target_include_directories(testellersmaze PUBLIC ${INC_DIRS})
-
 
 set(CMAKE_EXPORT_COMPILE_COMMANDS ON CACHE INTERNAL "")
 execute_process(
