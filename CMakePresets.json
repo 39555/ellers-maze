@@ -13,7 +13,7 @@
                 "CMAKE_EXE_LINKER_FLAGS": "-L$HOMEBREW_PREFIX/opt/llvm/lib/c++ -Wl,-rpath,$HOMEBREW_PREFIX/opt/llvm/lib/c++",
                 "CMAKE_CXX_FLAGS": "-v -stdlib=libc++ -I/opt/homebrew/opt/llvm/include -fexperimental-library",
                 "CMAKE_CXX_COMPILER": "clang++",
-                "CMAKE_C_COMPILER": "clang-15",
+                "CMAKE_C_COMPILER": "clang",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
             }
         }
