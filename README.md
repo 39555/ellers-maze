@@ -106,12 +106,19 @@ std::vector<bool> gen_h_line(){
     }
     // push cells without sets to unique set
     while(next != next_cell_without_set::end_of_list){
-        auto empty_set = std::ranges::find_if(sets, [](const auto& set){
-                return set.size() == 0;
-                });
-        cell_i cell = static_cast<cell_i>(next);
-        next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
-        push_cell_to_set(std::distance(sets.begin(), empty_set ), cell);
+        if(cached_empty_sets.empty()){
+                 // find all empty sets to use as unique sets again
+            for(size_t i{0}; i < sets.size(); i++){
+                if(sets[i].size() == 0){
+                    cached_empty_sets.push_back(i);
+                }
+            }
+            }
+            set_i empty_set = cached_empty_sets.back();
+            cached_empty_sets.pop_back();
+            cell_i cell = static_cast<cell_i>(next);
+            next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
+            push_cell_to_set(empty_set, cell);
     }
     return result;
 }
