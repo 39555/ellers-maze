@@ -55,7 +55,7 @@ ellrs::mazer maze{width, &randomBool};
 
 ```
 ## Implementation <a name = "implementation"></a>
-a vertical line generator:
+The vertical line generator:
 ```cpp
 bool wall = true;
 bool not_wall = false;
