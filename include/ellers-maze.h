@@ -111,6 +111,7 @@ private:
     // put cells by sets
     using set_type = std::vector< cell_i >;
     std::vector<set_type> sets;  
+    std::vector<set_i> cached_empty_sets{};
 public:
     mazer(cell_i width, RandomBoolProvider random_bool = details::default_rand_bool{}) : random_bool_(random_bool), width_(width)
     , cells_and_its_set(width)
@@ -121,6 +122,7 @@ public:
             sets[cell].reserve(static_cast<size_t>(width/2));
             push_cell_to_set(cell, cell); // 1 cell -> 1 set, 2 cell -> 2 set
         }
+        cached_empty_sets.reserve(width_/2);
      }
      cell_i get_maze_width() {return width_;} 
 
@@ -170,14 +172,23 @@ public:
                 else way_exists = true;
             }
         }
+        
         // push cells without sets to unique set
         while(next != next_cell_without_set::end_of_list){
-            auto empty_set = std::ranges::find_if(sets, [](const auto& set){
-                    return set.size() == 0;
-                    });
+
+            if(cached_empty_sets.empty()){
+                 // find all empty sets to use as unique sets again
+            for(size_t i{0}; i < sets.size(); i++){
+                if(sets[i].size() == 0){
+                    cached_empty_sets.push_back(i);
+                }
+            }
+            }
+            set_i empty_set = cached_empty_sets.back();
+            cached_empty_sets.pop_back();
             cell_i cell = static_cast<cell_i>(next);
             next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
-            push_cell_to_set(std::distance(sets.begin(), empty_set ), cell);
+            push_cell_to_set(empty_set, cell);
         }
         return result;
     }
