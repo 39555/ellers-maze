@@ -127,7 +127,7 @@ public:
 #pragma region algorithm_implementation
     walls_container gen_v_line(){
         auto result = walls_container(width_, not_wall);
-        for(cell_i cell{0}; cell < width_-1; cell++){
+        for(cell_i cell{0}; cell < width_-1; cell++){ // without the last cell
             cell_i next_cell = cell + 1;
             set_i  set =      get_cell_set(cell);
             set_i next_set = get_cell_set(next_cell);
@@ -138,7 +138,7 @@ public:
                 merge_sets(set, next_set);
             }
         }
-        result.back() = wall;
+        result.back() = wall; // a last right border
         return result;
     }
 
