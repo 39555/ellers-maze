@@ -3,12 +3,16 @@
 
 - [About](#about)
 - [Getting Started](#getting_started)
-- [Implementation] (#implementation)
+- [Implementation](#implementation)
 - [Links](#links)
 
 ## About <a name = "about"></a>
 This is my realization of Eller's Algorithm to generate an infinite maze as described by [Jamis Buck](https://weblog.jamisbuck.org/2010/12/29/maze-generation-eller-s-algorithm).
 This library just generates an array of bools, each index of this array indicate a cell with a wall(true) or a not wall(false) witch you can use in many contexts from a console to the Unreal Engine. The [example](https://github.com/autogalkin/ellersmaze/blob/master/example/main.cpp) shows how I use it in a console:
+
+
+https://user-images.githubusercontent.com/97976281/226358399-9aaf4e0f-7195-4ffa-bbd7-84ae50b0ced5.mov
+
 
 ## Getting Started <a name = "getting_started"></a>
 
@@ -50,7 +54,7 @@ bool randomBool() {
 ellrs::mazer maze{width, &randomBool};
 
 ```
-## Implementation
+## Implementation <a name = "implementation"></a>
 a vertical line generator:
 ```cpp
 bool wall = true;
