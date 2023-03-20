@@ -113,12 +113,12 @@ std::vector<bool> gen_h_line(){
                     cached_empty_sets.push_back(i);
                 }
             }
-            }
-            set_i empty_set = cached_empty_sets.back();
-            cached_empty_sets.pop_back();
-            cell_i cell = static_cast<cell_i>(next);
-            next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
-            push_cell_to_set(empty_set, cell);
+        }
+        set_i empty_set = cached_empty_sets.back();
+        cached_empty_sets.pop_back();
+        cell_i cell = static_cast<cell_i>(next);
+        next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
+        push_cell_to_set(empty_set, cell);
     }
     return result;
 }
