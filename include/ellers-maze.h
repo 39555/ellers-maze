@@ -23,10 +23,12 @@ namespace details {
     };
 
     // a simple rand based on uniform int distribution between 0-1 and std::default_random_engine
-    inline bool default_rand_bool() {
-    static auto gen = std::bind(std::uniform_int_distribution<>(0,1),std::default_random_engine());
-    return gen();
-    }
+    struct default_rand_bool{
+         std::uniform_int_distribution<> distr_{0,1};
+         std::default_random_engine      engine_{};
+         bool operator()(){ return distr_(engine_);}
+
+    };
 }
 
 using wall_t =    bool;
@@ -89,7 +91,7 @@ using cell_i = std::int32_t;
                         _1_|_2_|_3_|_4_|
      use a horisontal   ~^ ^~  and then use a vertical  
 */  
-template<typename RandomBoolProvider = decltype(&details::default_rand_bool)>
+template<typename RandomBoolProvider = details::default_rand_bool>
 requires requires(RandomBoolProvider& rand){ {rand()} -> std::convertible_to<bool>;}
 class mazer{
 public:
@@ -100,7 +102,7 @@ private:
 
     using set_i =  cell_i; // max(sets) = len(cells)
     enum class next_cell_without_set : std::conditional_t<std::is_unsigned_v<cell_i>, std::make_signed<cell_i>, cell_i>
-    { end_of_list = -1 }; // the index of next cell without set
+    { end_of_list = -1 };
 
     // store index to set in sets container
     std::vector< std::variant<set_i
@@ -110,7 +112,7 @@ private:
     using set_type = std::vector< cell_i >;
     std::vector<set_type> sets;  
 public:
-    mazer(cell_i width, RandomBoolProvider random_bool = &details::default_rand_bool) : random_bool_(random_bool), width_(width)
+    mazer(cell_i width, RandomBoolProvider random_bool = details::default_rand_bool{}) : random_bool_(random_bool), width_(width)
     , cells_and_its_set(width)
     , sets(width) {
         if(! (width > 0)) throw std::runtime_error("The width of maze must be greater then 0");
@@ -121,7 +123,8 @@ public:
         }
      }
      cell_i get_maze_width() {return width_;} 
- #pragma region algorithm_implementation
+
+#pragma region algorithm_implementation
     walls_container gen_v_line(){
         auto result = walls_container(width_, not_wall);
         for(cell_i cell{0}; cell < width_-1; cell++){

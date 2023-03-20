@@ -23,7 +23,6 @@ int main()
         assert(horizontal.type() == ellrs::line_t::horizontal);
         assert(vertical.size() == horizontal.size() && vertical.size() == width );
 
-        
         std::cout << '|'; // start line border
         // print first row of vertical line to make double size ~ >   |
         //                                                      ~ >   |
