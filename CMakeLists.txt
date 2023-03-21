@@ -16,7 +16,7 @@ option(ELLERSMAZE_EXAMPLE "Enable the example executable for ellers-maze" ${IS_R
 
 add_library(${PROJECT_NAME} INTERFACE)
 target_include_directories(${PROJECT_NAME} INTERFACE ${CMAKE_CURRENT_SOURCE_DIR}/include)
-target_compile_options(${PROJECT_NAME} INTERFACE -fcoroutines-ts)
+
 
 if(ELLERSMAZE_EXAMPLE)
     add_executable(maze_example ${CMAKE_CURRENT_SOURCE_DIR}/example/main.cpp)

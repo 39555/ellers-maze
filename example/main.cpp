@@ -4,7 +4,7 @@
 #include <vector>
 #include <thread> 
 
-#include "ellers-maze.h"
+#include "ellrs/maze.hpp"
 
 
 

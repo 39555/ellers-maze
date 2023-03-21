@@ -3,7 +3,7 @@
     "configurePresets": [
         {
             "name": "macos-debug",
-            "displayName": "Configure preset using toolchain file",
+            "displayName": "macos degug",
             "description": "Sets Ninja generator, build and install directory",
             "generator": "Ninja",
             "binaryDir": "${sourceDir}/out/build/${presetName}",
@@ -11,9 +11,22 @@
                 "CMAKE_BUILD_TYPE": "Debug",
                 "CMAKE_TOOLCHAIN_FILE": "",
                 "CMAKE_EXE_LINKER_FLAGS": "-L$HOMEBREW_PREFIX/opt/llvm/lib/c++ -Wl,-rpath,$HOMEBREW_PREFIX/opt/llvm/lib/c++",
-                "CMAKE_CXX_FLAGS": "-v -stdlib=libc++ -I/opt/homebrew/opt/llvm/include -fexperimental-library",
+                "CMAKE_CXX_FLAGS": "-v -stdlib=libc++ -I/opt/homebrew/opt/llvm/include -fexperimental-library -fcoroutines-ts",
                 "CMAKE_CXX_COMPILER": "clang++",
                 "CMAKE_C_COMPILER": "clang",
+                "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
+            }
+        },
+        {
+            "name": "x64-debug",
+            "displayName": "windows x64 debug",
+            "description": "Sets Ninja generator, build and install directory",
+            "generator": "Ninja",
+            "binaryDir": "${sourceDir}/out/build/${presetName}",
+            "cacheVariables": {
+                "CMAKE_BUILD_TYPE": "Debug",
+                "CMAKE_CXX_COMPILER": "cl",
+                "CMAKE_TOOLCHAIN_FILE": "",
                 "CMAKE_INSTALL_PREFIX": "${sourceDir}/out/install/${presetName}"
             }
         }
