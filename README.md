@@ -61,7 +61,7 @@ bool wall = true;
 bool not_wall = false;
 std::vector<bool> gen_v_line(){
     auto result = std::vector<bool>(width_, not_wall);
-    for(cell_i cell{0}; cell < width_-1; cell++){ // without the last cell
+    for(cell_i cell{0}; cell < width_-1; cell++){ // without a last cell
         cell_i next_cell = cell + 1;
         set_i  set =      get_cell_set(cell);
         set_i next_set = get_cell_set(next_cell);
