@@ -12,75 +12,36 @@ namespace ellrs {
 
 // which line is. vertical or horizontal.
 enum class line_t : std::int8_t {
-      vertical =   0 // false bit
-    , horizontal = 1 // true  bit
+      vertical =   0 
+    , horizontal = 1 
 };
 
-namespace details {
+inline line_t& operator++(line_t& l){
+l = static_cast<line_t>(1 - static_cast<int>(l));
+return l;
+};
 
-    inline line_t& operator++(line_t& l){
-    l = static_cast<line_t>(1 - static_cast<int>(l));
-    return l;
-    };
+// a simple rand based on uniform int distribution between 0-1 and std::default_random_engine
+struct default_rand_bool{
+        std::uniform_int_distribution<> distr_{0,1};
+        std::default_random_engine      engine_{};
+        bool operator()(){ return distr_(engine_);}
 
-    // a simple rand based on uniform int distribution between 0-1 and std::default_random_engine
-    struct default_rand_bool{
-         std::uniform_int_distribution<> distr_{0,1};
-         std::default_random_engine      engine_{};
-         bool operator()(){ return distr_(engine_);}
-
-    };
-}
+};
 
 using wall_t =    bool;
 static inline constexpr wall_t wall     = static_cast<wall_t>(true) ;
 static inline constexpr wall_t not_wall = static_cast<wall_t>(false) ;
 
-using walls_container = std::vector<bool>;  //  compressed bitset
-static_assert(std::is_same_v<walls_container::value_type , wall_t>
+// a container of generated walls
+using line = std::vector<bool>;  //  compressed bitset
+static_assert(std::is_same_v<line::value_type , wall_t>
 , "the type of wall's container must be the same as the wall_t type");
 
-/* A line is a simple wrapper of vector<bool> or other std container from walls_container typedef.
-   It is a sequence of bits 0,1 that represents a wall == 1(true) and a way == 0(false).
-   A line needs to store a current line type(line_t) in a first bit, so
-   '.begin()' starts from the second element.
-   And the method '.type()' returns which type this line is: vertical or horizontal.
-*/
-struct line : private walls_container{
-    using walls_container::value_type;
-    using walls_container::reference;
-    ///
-    // construct from an init list of bits
-    template<std::convertible_to<wall_t>...Args>
-    explicit line(line_t type, Args... walls_init_list)
-    : walls_container{static_cast<wall_t>(type), static_cast<wall_t>(walls_init_list)...} {
-    }
-    explicit line(size_t width, line_t type): walls_container(width+1, not_wall) {
-        (*this)[0] = static_cast<wall_t>(type );  
-    }
-    explicit line(): walls_container{static_cast<wall_t>(line_t::vertical)}{}
-
-    explicit line(walls_container&& container, line_t type): walls_container() {
-        walls_container::reserve(container.size() + 1);
-        walls_container::push_back(static_cast<wall_t>(type));
-        walls_container::insert(begin(), 
-                    std::begin(container), std::end(container)); 
-    }
-    ///
-    [[nodiscard]] reference operator[](size_t n){
-        return walls_container::operator[](n+1);
-    }
-    [[nodiscard]] size_t size() const {return walls_container::size() - 1 ; }
-    [[nodiscard]] walls_container::iterator begin() noexcept { return std::next(walls_container::begin()) ; }
-    [[nodiscard]] walls_container::iterator end  () noexcept { return walls_container::end() ;}
-    [[nodiscard]] walls_container::const_iterator begin() const noexcept { return std::next(walls_container::cbegin()) ; }
-    [[nodiscard]] walls_container::const_iterator end  () const noexcept { return walls_container::cend() ;}
-    // return a type of a maze line
-    [[nodiscard]] line_t type() { wall_t first = *walls_container::begin(); return static_cast<line_t>( first ); }
-};
-
 // a type that store a index of cell
-using cell_i = std::int32_t; 
+using cell_i = size_t; 
+
+
 
 /*  the main of Eller's algorithm
     The result  of generation just is an array of bits, 
@@ -92,18 +53,12 @@ using cell_i = std::int32_t;
                         _1_|_2_|_3_|_4_|
      use a horisontal   ~^ ^~  and then use a vertical  
 */  
-template<typename RandomBoolProvider = details::default_rand_bool>
-requires requires(RandomBoolProvider& rand){ {rand()} -> std::convertible_to<bool>;}
-class mazer{
-public:
-    using random_type = RandomBoolProvider;
-private:
-    random_type random_bool_;
-    cell_i width_;
-
+class maze{
     using set_i =  cell_i; // max(sets) = len(cells)
-    enum class next_cell_without_set : std::conditional_t<std::is_unsigned_v<cell_i>, std::make_signed<cell_i>, cell_i>
+    enum class next_cell_without_set : std::conditional_t<std::is_unsigned_v<cell_i>, std::make_signed_t<cell_i>, cell_i>
     { end_of_list = -1 };
+    // an iter over cells
+    static constexpr auto cells = [](auto from, auto to) {return std::views::iota(static_cast<cell_i>(from), static_cast<cell_i>(to));};
 
     // store index to set in sets container
     std::vector< std::variant<set_i
@@ -111,46 +66,73 @@ private:
                               cells_and_its_set;
     // put cells by sets
     using set_type = std::vector< cell_i >;
-    std::vector<set_type> sets;  
-    std::vector<set_i> cached_empty_sets{};
+    std::vector<set_type> sets_;  
+    std::vector<cell_i> cached_empty_sets_{};
+    cell_i width_;
+    line_t current_state_ = line_t::vertical;
+    
 public:
-    mazer(cell_i width, RandomBoolProvider random_bool = details::default_rand_bool{}) : random_bool_(random_bool), width_(width)
+    maze(cell_i width) noexcept(false) : width_(width)
     , cells_and_its_set(width)
-    , sets(width) {
-        if(! (width > 0)) throw std::runtime_error("The width of maze must be greater then 0");
+    , sets_(width) {
+        if(not (width > 0)) throw std::runtime_error("The width of maze must be greater then 0");
          // assign an original set to the each cell
-        for(auto cell : std::ranges::iota_view(cell_i{0}, width_)) {
-            sets[cell].reserve(static_cast<size_t>(width/2));
+        for(auto cell : cells(cell_i{0}, width_)) {
+            sets_[cell].reserve(static_cast<size_t>(width/5));
             push_cell_to_set(cell, cell); // 1 cell -> 1 set, 2 cell -> 2 set
         }
-        cached_empty_sets.reserve(width_/2);
      }
-     cell_i get_maze_width() {return width_;} 
+     
+    template<typename T>
+    requires requires(T rand_bool){ {rand_bool()} -> std::convertible_to<bool>;}
+    std::pair<line_t, line> getline(T&& rand_bool) noexcept {
+        std::pair<line_t, line> r{current_state_, line(width_)};
+        switch (current_state_) {
+            case line_t::vertical: {
+                r.second = gen_v_line(rand_bool);
+                break;
+            }
+            case line_t::horizontal: {
+                r.second = gen_h_line(rand_bool);
+                break;
+            }             
+        }
+        ++current_state_;
+        return r;
+    }
+    cell_i get_maze_width() const noexcept {return width_;} 
+
 
 #pragma region algorithm_implementation
-    walls_container gen_v_line(){
-        auto result = walls_container(width_, not_wall);
-        for(cell_i cell{0}; cell < width_-1; cell++){ // without the last cell
+private:
+
+    template<typename T>
+    line gen_v_line(T&& rand_bool) noexcept {
+        auto result = line(width_, not_wall);
+        const auto gen = cells(0, width_-1 /*without a last cell*/) 
+                        | std::views::transform([this, &rand_bool](auto cell){
             cell_i next_cell = cell + 1;
-            set_i  set =      get_cell_set(cell);
+            set_i  set     = get_cell_set(cell);
             set_i next_set = get_cell_set(next_cell);
-            if(set == next_set || random_bool_() /* build wall or not*/){
-                result[cell] = wall;
+            if(set == next_set || rand_bool() /* build wall or not*/){
+                return wall;
             }
             else{
                 merge_sets(set, next_set);
+                return not_wall;
             }
-        }
-        result.back() = wall; // a last right border
+        });
+        result.assign(gen.begin(), gen.end());
+        result.push_back(wall) ; // a last right border
         return result;
     }
-
-    walls_container gen_h_line(){   
-        auto result = walls_container(width_, not_wall);
+    template<typename T>
+    line gen_h_line(T&& rand_bool) noexcept {   
+        auto result = line(width_, not_wall);
         next_cell_without_set next 
                 = next_cell_without_set::end_of_list; // using to find changed cells
 
-        for(auto& set : sets){
+        for(auto& set : sets_){
             bool way_exists           {false}; // way is already started or not
             bool way_finish           {false}; // this flag  indicates that we have built ..
             // ..a wall after a certain path because we will no longer need another path
@@ -159,11 +141,9 @@ public:
                 auto cell = set[i];
                 if(( (i == set.size()-1 ) && ! way_exists ) ) continue; // keep guaranteed way
             
-                if( way_finish  || random_bool_() /* build a wall or not */){
-
+                if( way_finish  || rand_bool() /* build a wall or not */){
                      // pop cell from it`s set
-                    *(set.begin() + i) = std::move(set.back());   // an unordered erace 
-                    set.pop_back();
+                    *(set.begin() + i) = pop_back(set);  //  unordered erace 
                     cells_and_its_set[cell] = next;
                     next = static_cast<next_cell_without_set>(cell);
                     if(way_exists) way_finish = true;
@@ -173,100 +153,46 @@ public:
                 else way_exists = true;
             }
         }
-        
         // push cells without sets to unique set
         while(next != next_cell_without_set::end_of_list){
-
-            if(cached_empty_sets.empty()){
-                 // find all empty sets to use as unique sets again
-            for(size_t i{0}; i < sets.size(); i++){
-                if(sets[i].size() == 0){
-                    cached_empty_sets.push_back(i);
-                }
+            if(cached_empty_sets_.empty()){
+                cache_empty_sets();
             }
-            }
-            set_i empty_set = cached_empty_sets.back();
-            cached_empty_sets.pop_back();
             cell_i cell = static_cast<cell_i>(next);
             next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
-            push_cell_to_set(empty_set, cell);
+            push_cell_to_set(pop_back(cached_empty_sets_), cell);
         }
         return result;
     }
 #pragma endregion algorithm_implementation
 
 private:
-    void merge_sets(set_i a, set_i to_a) {
-        for(cell_i cell : sets[to_a]){
-            cells_and_its_set[cell] = a;
-        }
-        sets[a].insert(sets[a].end(), sets[to_a].begin(), sets[to_a].end());
-        sets[to_a].clear();
-    }
-    set_i& get_cell_set(cell_i cell){ return std::get<set_i>(cells_and_its_set[cell]);}
-    void push_cell_to_set(set_i set, cell_i cell) {
-        sets[set].push_back(cell);
+    set_i& get_cell_set(cell_i cell) noexcept { return std::get<set_i>(cells_and_its_set[cell]);}
+    void push_cell_to_set(set_i set, cell_i cell) noexcept {
+        sets_[set].push_back(cell);
         cells_and_its_set[cell] = set;
     }
-};
-
-
-// using a co_yield to generate a maze
-namespace coro {
-
-//a co_yield line generator, using as return type from function 
-struct linegen{
-    struct promise_type;
-    using handle_type = std::coroutine_handle<promise_type>;
-    class promise_type{
-        friend linegen;
-        line line_;
-        std::exception_ptr exception_;
-        public:
-        std::suspend_always initial_suspend() { return {}; }
-        std::suspend_always final_suspend() noexcept { return {}; }
-        void unhandled_exception() { exception_ = std::current_exception(); }                                                                    
-        void return_void() { }
-        linegen get_return_object() 
-        { return {std::coroutine_handle<promise_type>::from_promise(*this)}; }
-        template <std::convertible_to<line> ...From>
-        std::suspend_always yield_value(From&& ...from) 
-        { line_ = { std::forward<From>(from)...}; return {}; }
-    };
-private:
-    handle_type h_;
-public:
-    linegen(std::coroutine_handle<promise_type> h) : h_(h) {}
-    ~linegen() { h_.destroy(); };
-    line operator()(){
-        h_();
-        if (h_.promise().exception_)
-            std::rethrow_exception(h_.promise().exception_);
-        return std::move(h_.promise().line_);
-    }
-};
-
-// a coroutine function that returns a maze`s lines generator
-inline linegen maze(cell_i width) noexcept{
-    using namespace details;
-    line_t line_type = line_t::vertical;
-    auto maze_ = mazer(width);
-    for(;;){
-        walls_container  res;
-        switch (line_type) {
-            case line_t::vertical: {
-                res = maze_.gen_v_line();
-                break;
-            }
-            case line_t::horizontal: {
-                res = maze_.gen_h_line();
-                break;
-            }             
+    void merge_sets(set_i a, set_i to_a) noexcept {
+        for(cell_i cell : sets_[to_a]){
+            cells_and_its_set[cell] = a;
         }
-        co_yield line{std::move(res), line_type};
-        ++line_type;
+        sets_[a].insert(sets_[a].end(), sets_[to_a].begin(), sets_[to_a].end());
+        sets_[to_a].clear();
+    };
+    void cache_empty_sets() noexcept {
+        for(size_t i{0}; i < sets_.size(); i++){
+            if(sets_[i].size() == 0){
+                cached_empty_sets_.push_back(i);
+            }
+        }
     }
-}
-}
+    template<typename T>
+    auto pop_back(T& container) const noexcept -> typename T::value_type {
+        set_i elt = std::move(container.back());
+        container.pop_back();
+        return elt;
+    }
+};
+
 
 } // namespace ellrs
