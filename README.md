@@ -73,9 +73,7 @@ std::vector<bool> gen_h_line(){
     auto result = std::vector<bool>(width_, not_wall);
     next_cell_without_set next 
             = next_cell_without_set::end_of_list;
-     next_cell_without_set next 
-                = next_cell_without_set::end_of_list; // using to find changed cells
-
+            
     for(auto& set : sets){
         bool way_exists           {false}; // way is already started or not
         bool way_finish           {false}; // this flag  indicates that we have built ..
