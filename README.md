@@ -16,20 +16,16 @@ https://user-images.githubusercontent.com/97976281/226358399-9aaf4e0f-7195-4ffa-
 
 ## Getting Started <a name = "getting_started"></a>
 
-The library provides a c++20 coroutine's co_yield wrapper:
+The library provides a class with a one function:
 ```cpp
-auto lgen = ellrs::coro::maze(width);
+ellrs::maze maze{width};
+auto rand = ellrs::default_rand_bool{}; // you can pass your own random bool generator
 while(true) {
-    ellrs::line  vertical  =  lgen();
-    ellrs::line  horizontal = lgen();
-}
-```
-Or just a simple class
-```cpp
-ellrs::mazer maze{width};
-while(true) {
-ellrs::line  vertical  =  maze.gen_v_line();
-ellrs::line  horizontal = maze.gen_h_line();
+    auto  [ vtype, vertical ]   = maze.getline(rand);
+    auto  [ htype, horizontal ] = maze.getline(rand);
+
+    assert(vtype == ellrs::line_t::vertical);
+    assert(htype == ellrs::line_t::horizontal);
 }
 ```
 
@@ -40,18 +36,12 @@ You must start generation with a vertical line, but while using a result horizon
     print a horisontal ~^  ^~  and then print a vertical wall.
 ```
 
-To check a type of line you can use 'line::type()':
-```cpp
-ellrs::line line{ellrs::line_t::vertical};
-assert(line.type() == ellrs::line_t::vertical);
-```
-
 Also you can use your own random bool generator to generate a more interested result:
 ```cpp
 bool randomBool() {
    return rand() > (RAND_MAX / 2);
 }
-ellrs::mazer maze{width, &randomBool};
+maze.getline(&randomBool);
 
 ```
 ## Implementation <a name = "implementation"></a>
@@ -83,22 +73,24 @@ std::vector<bool> gen_h_line(){
     auto result = std::vector<bool>(width_, not_wall);
     next_cell_without_set next 
             = next_cell_without_set::end_of_list;
+     next_cell_without_set next 
+                = next_cell_without_set::end_of_list; // using to find changed cells
+
     for(auto& set : sets){
         bool way_exists           {false}; // way is already started or not
         bool way_finish           {false}; // this flag  indicates that we have built ..
         // ..a wall after a certain path because we will no longer need another path
-
         for(size_t i{0}; i < set.size(); i++){
             auto cell = set[i];
             if(( (i == set.size()-1 ) && ! way_exists ) ) continue; // keep guaranteed way
         
-            if( way_finish  || random_bool_() /* build a wall or not */){
+            if( way_finish  || rand_bool() /* build a wall or not */){
                     // pop cell from it`s set
-                *(set.begin() + i) = std::move(set.back());   // an unordered erace 
-                set.pop_back();
+                *(set.begin() + i) = pop_back(set);  //  unordered erace 
                 cells_and_its_set[cell] = next;
                 next = static_cast<next_cell_without_set>(cell);
                 if(way_exists) way_finish = true;
+
                 result[cell] = wall;
             }
             else way_exists = true;
@@ -106,19 +98,12 @@ std::vector<bool> gen_h_line(){
     }
     // push cells without sets to unique set
     while(next != next_cell_without_set::end_of_list){
-        if(cached_empty_sets.empty()){
-                 // find all empty sets to use as unique sets again
-            for(size_t i{0}; i < sets.size(); i++){
-                if(sets[i].size() == 0){
-                    cached_empty_sets.push_back(i);
-                }
-            }
+        if(cached_empty_sets_.empty()){
+            cache_empty_sets();
         }
-        set_i empty_set = cached_empty_sets.back();
-        cached_empty_sets.pop_back();
         cell_i cell = static_cast<cell_i>(next);
         next = std::get<next_cell_without_set>(cells_and_its_set[cell]) ;
-        push_cell_to_set(empty_set, cell);
+        push_cell_to_set(pop_back(cached_empty_sets_), cell);
     }
     return result;
 }
