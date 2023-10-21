@@ -78,7 +78,7 @@ public:
             { rand_bool() } -> std::convertible_to<bool>;
         }
     [[nodiscard]] std::pair<line_kind, line<Width>>
-    getline(T rand_bool) {
+    getline(T& rand_bool) {
         auto r =
             std::pair<line_kind, line<Width>>{current_state_, line<Width>{}};
         switch(current_state_) {
