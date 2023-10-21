@@ -6,16 +6,16 @@
 
 #include "ellrs/maze.hpp"
 
-
 int main() {
-
     constexpr int width = 30;
     std::cout << std::string((width) * 3 + width + 1, '_')
               << '\n'; // first floor
     auto maze = ellrs::maze<width>();
-    auto rand = std::default_random_engine{std::random_device{}()};
-    std::uniform_int_distribution<int> bool_dist(0, 1);
-    auto rand_bool = [&bool_dist, &rand]() { return bool_dist(rand); };
+    auto rand_bool =
+        [bool_dist = std::uniform_int_distribution<int>{0, 1},
+         rand = std::default_random_engine{std::random_device{}()}]() mutable {
+            return bool_dist(rand);
+        };
     while(true) {
         auto [vtype, vertical] = maze.getline(rand_bool);
         auto [htype, horizontal] = maze.getline(rand_bool);
@@ -47,4 +47,3 @@ int main() {
 
     return 0;
 }
-
