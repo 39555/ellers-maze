@@ -1,41 +1,44 @@
 
 #include <cassert>
-#include <fstream>
 #include <iostream>
-#include <vector>
-#include <thread> 
+#include <random>
+#include <thread>
 
 #include "ellrs/maze.hpp"
 
 
+int main() {
 
-int main()
-{
     constexpr int width = 30;
-    std::cout << std::string((width)*3 + width +1, '_') << '\n'; // first floor
-    auto maze = ellrs::maze(width);
-    auto rand = ellrs::default_rand_bool{};
+    std::cout << std::string((width) * 3 + width + 1, '_')
+              << '\n'; // first floor
+    auto maze = ellrs::maze<width>();
+    auto rand = std::default_random_engine{std::random_device{}()};
+    std::uniform_int_distribution<int> bool_dist(0, 1);
+    auto rand_bool = [&bool_dist, &rand]() { return bool_dist(rand); };
     while(true) {
-        auto  [vtype, vertical  ] = maze.getline(rand);
-        auto  [htype, horizontal] = maze.getline(rand);
-        assert(vtype == ellrs::line_t::vertical  );
-        assert(htype == ellrs::line_t::horizontal);
-        assert(vertical.size() == horizontal.size() && vertical.size() == width);
+        auto [vtype, vertical] = maze.getline(rand_bool);
+        auto [htype, horizontal] = maze.getline(rand_bool);
+        assert(vtype == ellrs::line_kind::vertical);
+        assert(htype == ellrs::line_kind::horizontal);
+        assert(vertical.size() == horizontal.size()
+               && vertical.size() == width);
 
         std::cout << '|'; // start line border
         // print first row of vertical line to make double size ~ >   |
         //                                                      ~ >   |
-        for(const auto bit : vertical){
-            std::cout  << "   " << (bit == ellrs::wall ? '|' : ' ' ) ;
-            }
-        std::cout  << '\n' << '|';
-
-        for(size_t i{0}; i < width; i++){
-            auto v_bit =   vertical[i];
-            auto h_bit = horizontal[i];
-            std::cout  << (h_bit == ellrs::wall ? "___" : "   ") << (v_bit == ellrs::wall ? '|' : ' ' ) ;
+        for(std::size_t i = 0; i < vertical.size(); ++i) {
+            std::cout << "   " << (vertical[i] == ellrs::WALL ? '|' : ' ');
         }
-        std::cout  << std::endl;
+        std::cout << '\n' << '|';
+
+        for(size_t i{0}; i < width; ++i) {
+            auto v_bit = vertical[i];
+            auto h_bit = horizontal[i];
+            std::cout << (h_bit == ellrs::WALL ? "___" : "   ")
+                      << (v_bit == ellrs::WALL ? '|' : ' ');
+        }
+        std::cout << '\n';
 
         using namespace std::chrono_literals;
 
@@ -44,5 +47,4 @@ int main()
 
     return 0;
 }
-
 
