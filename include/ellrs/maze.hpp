@@ -35,17 +35,20 @@ using line = std::bitset<Width>;
 constexpr wall_type WALL = true;
 constexpr wall_type NOT_WALL = false;
 
-/*  the main of Eller's algorithm
-    The result  of generation just is an array of bits,
-    so you can use it in many cases.
-    A generation of a maze must be starts with a generation
-    of a vertical line by 'gen_v_line'
-    and then a horizontal buy 'gen_h_line'. But while using a result horizontal
-   line must be first |   |   |   | _1_|_2_|_3_|_4_| use a horisontal   ~^ ^~
-   and then use a vertical
-*/
+// clang-format off
+/**
+ * @brief Generates the Eller's maze lines.
+ * The result of generation just is an array of bits,so you can use it in many
+ * cases. A generation of a maze starts with a generation of a vertical line and
+ * then a horizontal. The maze generation starts with a vertical line followed 
+ * by a horizontal one. However, when using the result, 
+ * the horizontal line should be used first
+ *                    _1_|_2_|_3_|_4_| 
+ *     a horisontal   ~^ ^~ and then a vertical
+ */
 template<cell_i Width>
     requires(Width > 0)
+// clang-format on
 class maze {
     using set_i = cell_i; // max(sets) = len(cells)
     enum class next_cell_without_set : std::conditional_t<
@@ -73,12 +76,18 @@ public:
         }
     }
 
+    /**
+     * @brief Generate the next maze line alternating between vertically and
+     * horizontally.
+     *
+     * @param rand_bool A random bool generator
+     * @return A maze line
+     */
     template<typename T>
         requires requires(T rand_bool) {
             { rand_bool() } -> std::convertible_to<bool>;
         }
-    [[nodiscard]] std::pair<line_kind, line<Width>>
-    getline(T& rand_bool) {
+    [[nodiscard]] std::pair<line_kind, line<Width>> getline(T& rand_bool) {
         auto r =
             std::pair<line_kind, line<Width>>{current_state_, line<Width>{}};
         switch(current_state_) {
@@ -191,8 +200,7 @@ private:
         }
     }
     template<typename T>
-    auto pop_back(T& container) const noexcept ->
-        typename T::value_type {
+    auto pop_back(T& container) const noexcept -> typename T::value_type {
         set_i elt = container.back();
         container.pop_back();
         return elt;
