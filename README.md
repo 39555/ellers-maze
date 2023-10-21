@@ -1,4 +1,4 @@
-# ellersmaze
+# Eller's Maze
 
 ## About 
 This is my implementation of Eller's Algorithm to generate an infinite maze as described by [Jamis Buck](https://weblog.jamisbuck.org/2010/12/29/maze-generation-eller-s-algorithm).
