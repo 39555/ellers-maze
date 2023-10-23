@@ -8,7 +8,7 @@
 <!--toc:end-->
 
 ## About 
-This is my implementation of Eller's Algorithm to generate an infinite maze as described by [Jamis Buck](https://weblog.jamisbuck.org/2010/12/29/maze-generation-eller-s-algorithm).
+This is my implementation of Eller's Algorithm for generating infinite mazes as described by [Jamis Buck](https://weblog.jamisbuck.org/2010/12/29/maze-generation-eller-s-algorithm).
 This library generates a bitset where each bit represents a cell, with 'true' indicating a wall and 'false' indicating a non-wall. An [example](https://github.com/autogalkin/ellersmaze/blob/master/example/main.cpp) prints the maze in the terminal.
 
 
